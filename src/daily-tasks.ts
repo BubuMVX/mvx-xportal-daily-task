@@ -14,6 +14,7 @@ import {log} from "./utils/log";
 import {ErrNetworkProvider} from "@multiversx/sdk-network-providers/out/errors";
 import {claimContract} from "./utils/claimContract";
 import {wallets} from "./wallets";
+import {sleep} from "./utils/sleep";
 
 (async () => {
     const provider = new ProxyNetworkProvider(proxyProviderAddress)
@@ -35,9 +36,9 @@ import {wallets} from "./wallets";
         wallet.update(walletOnNetwork)
 
         const address = Address.fromBech32(wallet.address.bech32())
-        const addressComputer = new  AddressComputer()
+        const addressComputer = new AddressComputer()
         const shard = addressComputer.getShardOfAddress(address)
-        log.info(`Claiming XP for ${wallet.address} on shard ${shard}`)
+        log.info(`Claiming XP for ${wallet.address} (shard ${shard})`)
 
         const transaction = factory.createTransactionForExecute({
             sender: wallet.address,
@@ -56,5 +57,7 @@ import {wallets} from "./wallets";
             .catch((reason: ErrNetworkProvider) => {
                 log.error(reason.message)
             })
+
+        await sleep(500)
     }
 })()

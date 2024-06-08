@@ -2,6 +2,10 @@
 
 A simple TypeScript app to automate the claiming of your daily xPortal XP on MultiversX.
 
+## Prerequisites
+
+NodeJS must be installed on your system.
+
 ## Installation
 
 ```
@@ -14,7 +18,7 @@ npm install
 
 - Put your wallets in JSON format in the `wallets` folder
 - Copy `src/wallets.example.ts` to `src/wallets.ts`
-- Edit `src/wallets.ts` and add your wallets filenames and passwords
+- Edit `src/wallets.ts` and add the filenames and passwords of your wallets
 
 ## Run
 
@@ -24,12 +28,12 @@ npm run start
 
 ## Crontab
 
-Execute it once per day.
+Run it once per day.
 
 ```
 0 0 * * * cd /path/to/mvx-xportal-dailytask && npm run start
 ```
 
-## Claim from a browser
+## Claim XP from a browser
 
 https://xportal.artmakers.io/
