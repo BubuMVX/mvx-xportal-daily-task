@@ -44,18 +44,18 @@ import {sleep} from "./utils/sleep";
             sender: wallet.address,
             contract: claimContract(shard),
             function: "claim",
-            gasLimit: BigInt(2_500_000),
+            gasLimit: 2_500_000n,
         })
-        transaction.nonce = BigInt(wallet.nonce.valueOf())
+        transaction.nonce = BigInt(wallet.getNonceThenIncrement().valueOf())
         transaction.signature = await walletSigner.sign(transaction.serializeForSigning())
 
         await provider
             .sendTransaction(transaction)
-            .then((txHash) => {
-                log.info(`Daily task sent: ${txHash}`)
-            })
             .catch((reason: ErrNetworkProvider) => {
                 log.error(reason.message)
+            })
+            .then((txHash) => {
+                log.info(`Daily task sent: ${txHash}`)
             })
 
         await sleep(500)
