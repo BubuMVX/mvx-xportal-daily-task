@@ -17,7 +17,9 @@ import {wallets} from "./wallets";
 import {sleep} from "./utils/sleep";
 
 (async () => {
-    const provider = new ProxyNetworkProvider(proxyProviderAddress)
+    const provider = new ProxyNetworkProvider(proxyProviderAddress, {
+        clientName: 'xPortal Daily Task bot',
+    })
     const networkConfig = await provider.getNetworkConfig()
     const factoryConfig = new TransactionsFactoryConfig({
         chainID: networkConfig.ChainID,
@@ -44,7 +46,7 @@ import {sleep} from "./utils/sleep";
             sender: wallet.address,
             contract: claimContract(shard),
             function: "claim",
-            gasLimit: 2_500_000n,
+            gasLimit: 4_000_000n,
         })
         transaction.nonce = BigInt(wallet.getNonceThenIncrement().valueOf())
         transaction.signature = await walletSigner.sign(transaction.serializeForSigning())
