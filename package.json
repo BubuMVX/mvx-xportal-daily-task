@@ -4,17 +4,17 @@
   "version": "1.0.0",
   "author": "Bubu",
   "dependencies": {
-    "@multiversx/sdk-core": "^13.1.0",
-    "@multiversx/sdk-network-providers": "^2.4.3",
-    "@multiversx/sdk-wallet": "^4.4.0",
-    "tslog": "^4.9.2"
+    "@multiversx/sdk-core": "^13.17.2",
+    "@multiversx/sdk-network-providers": "^2.9.3",
+    "@multiversx/sdk-wallet": "^4.6.0",
+    "tslog": "^4.9.3"
   },
   "scripts": {
     "start": "tsx src/daily-tasks.ts",
     "build": "tsc -p ."
   },
   "devDependencies": {
-    "tsx": "^4.7.3",
-    "typescript": "^5.4.3"
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
   }
 }
