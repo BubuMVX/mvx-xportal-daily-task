@@ -15,7 +15,7 @@ This app doesn't handle wallets protected by Guardian. If this is something want
 ## Installation
 
 ```
-git clone https://github.com/grobux/mvx-xportal-daily-task.git
+git clone https://github.com/BubuMVX/mvx-xportal-daily-task.git
 cd mvx-xportal-daily-task
 npm install
 ```
