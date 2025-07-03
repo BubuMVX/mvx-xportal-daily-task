@@ -33,12 +33,10 @@ npm install
 npm run start
 ```
 
-## Crontab
-
-Run it once per day.
+## Docker
 
 ```
-0 0 * * * cd /path/to/mvx-xportal-dailytask && npm run start
+docker compose up -d
 ```
 
 ## Claim XP from a browser

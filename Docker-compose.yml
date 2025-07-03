@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  mvx-xportal-dailytask:
+    build: .
+    container_name: mvx-xportal-dailytask
+    restart: always
+    volumes:
+      - ./wallets:/app/wallets
+    env_file:
+      - .env
