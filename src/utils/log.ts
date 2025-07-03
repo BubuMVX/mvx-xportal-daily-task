@@ -1,4 +1,4 @@
-import {ILogObj, Logger} from "tslog";
+import { ILogObj, Logger } from "tslog";
 
 const debug = true
 
