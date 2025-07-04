@@ -19,6 +19,7 @@ import { getEpochInfo } from './utils/epochInfo';
 import { extractErrorMessage } from './utils/extractError';
 import { BoostInfo } from './types/boostInfo.types';
 import { DailyInfo } from './types/dailyInfo.types';
+import { handleAxiosError } from './utils/errorHandler';
 
 async function processWallet(walletJson: typeof wallets[0]) {
     const folder = path.join(__dirname, walletsFolder);
@@ -114,11 +115,25 @@ async function processWallet(walletJson: typeof wallets[0]) {
 
         setTimeout(() => processWallet(walletJson), delayBeforeNextCall);
 
-    } catch (error) {
-        log.error(`Unexpected error processing wallet ${walletJson.file}`);
-        log.error(error as Error);
-        setTimeout(() => processWallet(walletJson), 60 * 1000);
+    } catch (error: unknown) {
+        log.error(`Unexpected error processing wallet ${walletJson.file}:`);
+
+        if (error instanceof Error) {
+            log.error(error.stack ?? error.message);
+        } else {
+            log.error(String(error));
+        }
+
+        const shouldRetry = handleAxiosError(error, { walletFile: walletJson.file, log });
+
+        if (shouldRetry) {
+            log.info(`Retrying to process wallet ${walletJson.file} in 60 seconds...`);
+            setTimeout(() => processWallet(walletJson), 60 * 1000);
+        } else {
+            log.error(`No retry for wallet ${walletJson.file} due to error type.`);
+        }
     }
+
 }
 
 async function sendClaimTransaction(

@@ -2,7 +2,10 @@
   "name": "mvx-xportal-dailytask",
   "private": true,
   "version": "2.0.0",
-  "authors": "Bubu, elpulpo0",
+  "author": "Bubu",
+  "contributors": [
+    "elpulpo0"
+  ],
   "dependencies": {
     "@multiversx/sdk-core": "^14.2.4",
     "@multiversx/sdk-native-auth-client": "^1.0.9",
