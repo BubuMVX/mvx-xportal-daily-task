@@ -21,6 +21,28 @@ import { BoostInfo } from './types/boostInfo.types';
 import { DailyInfo } from './types/dailyInfo.types';
 import { handleAxiosError } from './utils/errorHandler';
 
+function scheduleProcessWallet(wallet: typeof wallets[0], delaySeconds: number) {
+    let remainingSeconds = delaySeconds;
+
+    const intervalId = setInterval(() => {
+        if (remainingSeconds <= 0) {
+            clearInterval(intervalId);
+            processWallet(wallet);
+            return;
+        }
+
+        const hours = Math.floor((remainingSeconds % 86400) / 3600);
+        const minutes = Math.floor((remainingSeconds % 3600) / 60);
+        const seconds = remainingSeconds % 60;
+
+        const display = `⏳ Time until next execution: ${String(hours).padStart(2, '0')}h:${String(minutes).padStart(2, '0')}m:${String(seconds).padStart(2, '0')}s`;
+
+        process.stdout.write('\r' + display);
+
+        remainingSeconds--;
+    }, 1000);
+}
+
 async function processWallet(walletJson: typeof wallets[0]) {
     const folder = path.join(__dirname, walletsFolder);
     const addressComputer = new AddressComputer();
@@ -111,9 +133,12 @@ async function processWallet(walletJson: typeof wallets[0]) {
             log.info(`Next boost claim available at ${nextBoostMoment.format('DD/MM/YYYY HH:mm:ss')} (in ${Math.round(boostDelay / 1000)} seconds)`);
         }
 
-        log.info(`Scheduling next processWallet call in ${Math.floor(delayBeforeNextCall / 1000)} seconds.`);
+        // Convertir en secondes pour scheduleProcessWallet
+        const delaySeconds = Math.floor(delayBeforeNextCall / 1000);
 
-        setTimeout(() => processWallet(walletJson), delayBeforeNextCall);
+        log.info(`Scheduling next processWallet call in ${delaySeconds} seconds.`);
+
+        scheduleProcessWallet(walletJson, delaySeconds);
 
     } catch (error: unknown) {
         log.error(`Unexpected error processing wallet ${walletJson.file}:`);
