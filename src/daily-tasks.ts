@@ -74,8 +74,6 @@ async function processWallet(walletJson: typeof wallets[0]) {
         const nextEpochMoment = moment(epochInfo.nextEpochTimestamp);
         const epochDelay = Math.max(nextEpochMoment.diff(now), 0);
 
-        log.info(`Next daily claim available at ${nextEpochMoment.format('DD/MM/YYYY HH:mm:ss')} (in ${Math.floor(epochDelay / 1000)} seconds)`);
-        log.info(`Next boost claim available at ${nextBoostMoment.format('DD/MM/YYYY HH:mm:ss')} (in ${Math.round(boostDelay / 1000)} seconds)`);
 
         let delayBeforeNextCall = Math.min(
             epochDelay > 0 ? epochDelay : Infinity,
@@ -95,9 +93,11 @@ async function processWallet(walletJson: typeof wallets[0]) {
                 log.error(`Error during daily claim:`);
                 log.error(err as Error);
             }
+        } else {
+            log.info(`Next daily claim available at ${nextEpochMoment.format('DD/MM/YYYY HH:mm:ss')} (in ${Math.floor(epochDelay / 1000)} seconds)`);
         }
 
-        if (boostDelay === 0) {
+        if (boostDelay <= 0) {
             log.info(`Boost claim available! Sending boost transaction...`);
             try {
                 await sendBoostTransaction(wallet, shard, factory, provider);
@@ -106,11 +106,14 @@ async function processWallet(walletJson: typeof wallets[0]) {
                 log.error(`Error during boost claim:`);
                 log.error(err as Error);
             }
+        } else {
+            log.info(`Next boost claim available at ${nextBoostMoment.format('DD/MM/YYYY HH:mm:ss')} (in ${Math.round(boostDelay / 1000)} seconds)`);
         }
 
         log.info(`Scheduling next processWallet call in ${Math.floor(delayBeforeNextCall / 1000)} seconds.`);
 
         setTimeout(() => processWallet(walletJson), delayBeforeNextCall);
+
     } catch (error) {
         log.error(`Unexpected error processing wallet ${walletJson.file}`);
         log.error(error as Error);
