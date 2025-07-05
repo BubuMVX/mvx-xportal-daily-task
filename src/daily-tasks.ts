@@ -55,7 +55,7 @@ async function processWalletLoop(walletJson: typeof wallets[0]) {
             const delayMs = await processWallet(walletJson);
             await waitWithCountdown(delayMs);
         } catch (err) {
-            log.error("Error in processWalletLoop:", err);
+            log.error("Error in processWalletLoop");
             await new Promise(r => setTimeout(r, 60 * 1000));
         }
     }

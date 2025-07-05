@@ -64,10 +64,6 @@ export const STATUS_CODES: Record<string, string> = {
     '511': 'Network Authentication Required',
 };
 
-/**
- * Gère les erreurs Axios en logguant les détails et
- * retourne true si on doit relancer (retry), false sinon.
- */
 export function handleAxiosError(
     error: unknown,
     { walletFile, log }: { walletFile: string; log: any }
@@ -84,37 +80,38 @@ export function handleAxiosError(
 
         const status = err.response.status ?? 0;
         const statusMessage = STATUS_CODES[status.toString()] ?? "Unknown Status";
+        const responseData = err.response.data ?? {};
 
-        log.error(`HTTP Error ${status} ${statusMessage} for wallet ${walletFile}`);
-        log.error(`Response data: ${JSON.stringify(err.response.data)}`);
+        if (status === 401) {
+            log.error(`Unauthorized (401) - vérifie ton token pour ${walletFile}`);
+            log.debug(`Détails: ${JSON.stringify({ data: responseData })}`);
+            return false;
+        }
+
+        log.error(`HTTP Error ${status} ${statusMessage} pour ${walletFile}`);
+        log.debug(`Response data: ${JSON.stringify(responseData)}`);
 
         switch (status) {
-            case 401:
-                log.error(
-                    `Unauthorized error - vérifie le token ou l'authentification pour ${walletFile}`
-                );
-                return false; // Ne pas retry, problème d'auth
             case 403:
                 log.error(`Forbidden - accès refusé pour ${walletFile}`);
-                return false; // Ne pas retry
+                return false;
             case 404:
                 log.error(`Not Found - ressource introuvable pour ${walletFile}`);
-                return false; // Ne pas retry
-            case 408: // Timeout
-            case 429: // Too Many Requests (rate limiting)
-            case 500: // Internal Server Error
+                return false;
+            case 408:
+            case 429:
+            case 500:
             case 502:
             case 503:
             case 504:
-                log.info(`Erreur temporaire, retry possible pour ${walletFile}`);
-                return true; // Retry possible
+                log.info(`Erreur temporaire (${status}), retry possible pour ${walletFile}`);
+                return true;
             default:
-                log.error(`Erreur HTTP non gérée, ne retry pas pour ${walletFile}`);
+                log.error(`Erreur HTTP non gérée (${status}), ne retry pas pour ${walletFile}`);
                 return false;
         }
     }
 
-    // Pour d’autres erreurs non Axios ou sans réponse
     log.error(`Erreur inconnue ou non Axios pour ${walletFile}: ${String(error)}`);
-    return true; // Retry par défaut si on ne sait pas
+    return true;
 }
