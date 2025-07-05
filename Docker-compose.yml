@@ -8,8 +8,12 @@ services:
     volumes:
       - ./wallets:/app/wallets
       - logs-data:/app/logs
+      - /etc/localtime:/etc/localtime:ro
     env_file:
       - .env
+    environment:
+      - IN_DOCKER=true
+      - TZ=Europe/Paris
 
 volumes:
   logs-data:

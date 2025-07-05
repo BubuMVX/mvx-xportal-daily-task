@@ -8,4 +8,6 @@ RUN npm install
 COPY . .
 COPY .env ./
 
+RUN apt-get update && apt-get install -y tzdata
+
 CMD ["npm", "start"]

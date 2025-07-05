@@ -8,12 +8,14 @@ import {
 } from '@multiversx/sdk-core/out';
 import { ProxyNetworkProvider } from '@multiversx/sdk-network-providers';
 import { NativeAuthClient } from '@multiversx/sdk-native-auth-client';
-import moment from 'moment';
+import moment from 'moment-timezone';
 import path from 'node:path';
 import { xPortalApi } from './classes/xPortalApi';
 import { apiAddress, proxyProviderAddress, walletsFolder } from './config';
 import { boostContract, dailyTasksContract } from './utils/contracts';
 import { log } from './utils/log';
+import { formatDuration } from './utils/formatDuration';
+import { isRunningInDocker } from './utils/docker';
 import { wallets } from './wallets';
 import { getEpochInfo } from './utils/epochInfo';
 import { extractErrorMessage } from './utils/extractError';
@@ -21,29 +23,46 @@ import { BoostInfo } from './types/boostInfo.types';
 import { DailyInfo } from './types/dailyInfo.types';
 import { handleAxiosError } from './utils/errorHandler';
 
-function scheduleProcessWallet(wallet: typeof wallets[0], delaySeconds: number) {
-    let remainingSeconds = delaySeconds;
+async function waitWithCountdown(delayMs: number) {
+    const remainingSeconds = Math.floor(delayMs / 1000);
+    let secondsLeft = remainingSeconds;
 
-    const intervalId = setInterval(() => {
-        if (remainingSeconds <= 0) {
-            clearInterval(intervalId);
-            processWallet(wallet);
-            return;
+    const logFn = isRunningInDocker()
+        ? (msg: string) => log.info(msg)
+        : (msg: string) => process.stdout.write(`\r${msg}`);
+
+    while (secondsLeft > 0) {
+        const hours = Math.floor(secondsLeft / 3600);
+        const minutes = Math.floor((secondsLeft % 3600) / 60);
+        const seconds = secondsLeft % 60;
+
+        const message = `⏳ Time until next execution: ${hours}h ${minutes}m ${seconds}s`;
+        logFn(message);
+
+        await new Promise(r => setTimeout(r, 1000));
+        secondsLeft--;
+    }
+
+    if (!isRunningInDocker()) {
+        process.stdout.write('\r');
+    }
+}
+
+async function processWalletLoop(walletJson: typeof wallets[0]) {
+    log.info(`Starting loop iteration for wallet ${walletJson.file}`);
+    while (true) {
+        try {
+            const delayMs = await processWallet(walletJson);
+            await waitWithCountdown(delayMs);
+        } catch (err) {
+            log.error("Error in processWalletLoop:", err);
+            await new Promise(r => setTimeout(r, 60 * 1000));
         }
-
-        const hours = Math.floor((remainingSeconds % 86400) / 3600);
-        const minutes = Math.floor((remainingSeconds % 3600) / 60);
-        const seconds = remainingSeconds % 60;
-
-        const display = `⏳ Time until next execution: ${String(hours).padStart(2, '0')}h:${String(minutes).padStart(2, '0')}m:${String(seconds).padStart(2, '0')}s`;
-
-        process.stdout.write('\r' + display);
-
-        remainingSeconds--;
-    }, 1000);
+    }
 }
 
 async function processWallet(walletJson: typeof wallets[0]) {
+    let delayBeforeNextCall = 60 * 1000; // valeur par défaut
     const folder = path.join(__dirname, walletsFolder);
     const addressComputer = new AddressComputer();
     const nativeAuthClient = new NativeAuthClient({
@@ -89,16 +108,19 @@ async function processWallet(walletJson: typeof wallets[0]) {
 
         const epochInfo = await getEpochInfo(provider);
 
-        const now = moment();
+        const now = moment().utc();
 
-        const nextBoostMoment = moment.unix(boostInfo.nextClaimTimestamp);
-        const boostDelay = Math.max(nextBoostMoment.diff(now), 0);
+        const nextBoostMomentUTC = moment.unix(boostInfo.nextClaimTimestamp).utc();
+        const nextEpochMomentUTC = moment(epochInfo.nextEpochTimestamp).utc();
 
-        const nextEpochMoment = moment(epochInfo.nextEpochTimestamp);
-        const epochDelay = Math.max(nextEpochMoment.diff(now), 0);
+        const boostDelay = Math.max(nextBoostMomentUTC.diff(now), 0);
+        const epochDelay = Math.max(nextEpochMomentUTC.diff(now), 0);
 
+        // Pour afficher en heure locale (ex: Europe/Paris)
+        const nextBoostLocal = nextBoostMomentUTC.clone().tz("Europe/Paris");
+        const nextEpochLocal = nextEpochMomentUTC.clone().tz("Europe/Paris");
 
-        let delayBeforeNextCall = Math.min(
+        delayBeforeNextCall = Math.min(
             epochDelay > 0 ? epochDelay : Infinity,
             boostDelay > 0 ? boostDelay : Infinity,
         ) + 10_000;
@@ -117,7 +139,8 @@ async function processWallet(walletJson: typeof wallets[0]) {
                 log.error(err as Error);
             }
         } else {
-            log.info(`Next daily claim available at ${nextEpochMoment.format('DD/MM/YYYY HH:mm:ss')} (in ${Math.floor(epochDelay / 1000)} seconds)`);
+            log.info(`Next daily claim available at ${nextEpochLocal.format('DD/MM/YYYY HH:mm:ss')} (in ${formatDuration(epochDelay)})`);
+
         }
 
         if (boostDelay <= 0) {
@@ -130,15 +153,8 @@ async function processWallet(walletJson: typeof wallets[0]) {
                 log.error(err as Error);
             }
         } else {
-            log.info(`Next boost claim available at ${nextBoostMoment.format('DD/MM/YYYY HH:mm:ss')} (in ${Math.round(boostDelay / 1000)} seconds)`);
+            log.info(`Next boost claim available at ${nextBoostLocal.format('DD/MM/YYYY HH:mm:ss')} (in ${formatDuration(boostDelay)})`);
         }
-
-        // Convertir en secondes pour scheduleProcessWallet
-        const delaySeconds = Math.floor(delayBeforeNextCall / 1000);
-
-        log.info(`Scheduling next processWallet call in ${delaySeconds} seconds.`);
-
-        scheduleProcessWallet(walletJson, delaySeconds);
 
     } catch (error: unknown) {
         log.error(`Unexpected error processing wallet ${walletJson.file}:`);
@@ -151,13 +167,13 @@ async function processWallet(walletJson: typeof wallets[0]) {
 
         const shouldRetry = handleAxiosError(error, { walletFile: walletJson.file, log });
 
-        if (shouldRetry) {
-            log.info(`Retrying to process wallet ${walletJson.file} in 60 seconds...`);
-            setTimeout(() => processWallet(walletJson), 60 * 1000);
-        } else {
+        if (!shouldRetry) {
             log.error(`No retry for wallet ${walletJson.file} due to error type.`);
+            throw error;
         }
     }
+
+    return delayBeforeNextCall;
 
 }
 
@@ -230,6 +246,6 @@ async function sendBoostTransaction(
 
 (async () => {
     for (const walletJson of wallets) {
-        processWallet(walletJson);
+        processWalletLoop(walletJson);
     }
 })();
